@@ -7,8 +7,8 @@ const axios = require("axios");
 
 const login = require("./src/login");
 const createShopData = require("./src/createShopData");
-
 const getShops = require("./src/getShops");
+const createReceiverForEachCustomerOfShop = require("./src/createReceiverForEachCustomerOfShop");
 
 async function main() {
   let token = await login(baseUrl, phoneNumber, password);
@@ -17,14 +17,14 @@ async function main() {
   let shops = (await getShops()).items;
   for (let shop of shops) {
     let tenantId = shop.tenantId;
-    await createShopData(tenantId).catch(function (error) {
+    await createReceiverForEachCustomerOfShop(tenantId).catch(function (error) {
       if (error.response) {
         console.log(error.response.data);
         console.log(error.response.status);
         console.log(error.response.headers);
       } else console.log("Error", error.message);
     });
-    console.log("Created data for shop:", shop.name);
+    console.log("Processed data for shop:", shop.name);
   }
 }
 
