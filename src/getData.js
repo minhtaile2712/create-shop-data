@@ -1,7 +1,5 @@
-const axios = require("axios");
+import axios from "axios";
 
-async function getData(url) {
+export default async function getData(url) {
   return await axios.get(url).then((r) => r.data);
 }
-
-module.exports = getData;

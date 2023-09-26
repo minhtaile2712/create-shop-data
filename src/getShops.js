@@ -1,10 +1,8 @@
+import axios from "axios";
+
 let baseUrl = process.env.BASEURL;
 
-const getData = require("./getData");
-
-async function getShops() {
+export default async function getShops() {
   let url = `${baseUrl}/authentication/v1/shops`;
-  return await getData(url);
+  return await axios.get(url).then((r) => r.data);
 }
-
-module.exports = getShops;
