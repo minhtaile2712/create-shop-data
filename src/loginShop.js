@@ -10,5 +10,5 @@ export default async function loginShop(tenantId) {
   let token = await axios
     .post(url, identity, { headers: { tenant: tenantId } })
     .then((r) => r.data.accessToken);
-  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  return token;
 }

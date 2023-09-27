@@ -19,14 +19,10 @@ import getProductListFromFile from "./src/getProductListFromFile.js";
 
 const log = console.log;
 
-async function getOneUnit() {
-  let url = `${baseUrl}/product/v1/unit?SearchText=Cai`;
-  let unit = await axios.get(url).then((r) => r.data.items[0]);
-  return unit;
-}
-
 async function main() {
   let productList = getProductListFromFile(fileName);
+  // productList = productList.slice(0, 50);
+  log("There are", productList.length, "item(s) in product list.");
 
   await login(baseUrl, phoneNumber, password);
 
@@ -37,47 +33,60 @@ async function main() {
   log("Program start after", Math.floor(delayAmount / 1000), "second(s)");
   await delayMs(delayAmount);
 
-  for (let shop of shops) {
-    await loginShop(shop.tenantId);
+  let concurrent = setInterval(() => {
+    log("Active request:", limit.activeCount);
+    log("Pending request:", limit.pendingCount);
+  }, 1000);
 
-    // Do something with shop here
+  let product = {
+    barcode: "",
+    name: "",
+    unitId: 0,
+    weight: 0,
+    weightUnit: 1,
+    originalPrice: 10000,
+    soldPrice: 15000,
+    initialStock: 100,
+    tagIds: [],
+  };
 
-    let unit = await getOneUnit();
-    let product = {
-      barcode: "",
-      name: "",
-      unitId: unit.id,
-      weight: 0,
-      weightUnit: 1,
-      originalPrice: 10000,
-      soldPrice: 15000,
-      initialStock: 100,
-      tagIds: [],
-    };
-    let productUrl = `${baseUrl}/product/v1/product`;
+  await Promise.all(
+    shops.map((shop) =>
+      limit(async () => {
+        const token = await loginShop(shop.tenantId);
+        const productHttpClient = axios.create({
+          baseURL: `${baseUrl}/product/v1/`,
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const unitId = await productHttpClient
+          .get("unit?SearchText=Cai")
+          .then((r) => r.data.items[0].id);
 
-    setInterval(() => {
-      log("Active request:", limit.activeCount);
-      log("Pending request:", limit.pendingCount);
-    }, 1000);
+        let remaining = productList.length;
+        log(`Remaining products for ${shop.name}: ${remaining}`);
+        let shopInterval = setInterval(() => {
+          log(`Remaining products for ${shop.name}: ${remaining}`);
+        }, 1000);
+        for (const { barcode, itemname } of productList) {
+          await productHttpClient
+            .post("product", { ...product, unitId, barcode, name: itemname })
+            .catch((er) => {
+              if (er.response) log(er.response.status, er.response.data);
+              else log("No response error:", er.message);
+            });
+          remaining--;
+        }
+        clearInterval(shopInterval);
+        log(`Remaining products for ${shop.name}: ${remaining}`);
+        log("Processed for shop:", shop.name);
+      })
+    )
+  );
 
-    await Promise.all(
-      productList.map((productData) =>
-        limit(() =>
-          axios.post(productUrl, {
-            ...product,
-            barcode: productData.barcode,
-            name: productData.itemname,
-          })
-        )
-      )
-    );
-
-    log("Processed for shop:", shop.name);
-  }
+  clearInterval(concurrent);
 }
 
-main().catch(function (error) {
+main().catch((error) => {
   if (error.response) log(error.response.status, error.response.data);
   else log("Error", error.message);
 });
